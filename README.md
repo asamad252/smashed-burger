@@ -152,8 +152,12 @@ smashed-burger/
 ```
 
 ---
+<h1 align="center">Welcome to smashed-burger 👋</h1>
+<p>
+  <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-blue.svg?cacheSeconds=2592000" />
+</p>
 
-## Getting Started
+## Install
 
 ### Prerequisites
 
@@ -516,3 +520,19 @@ Smashed Burger demonstrates practical implementation of:
 The application is actively structured as a full burger-ordering experience, with the core menu, authentication, product storage, navigation, and shopping-cart functionality integrated with Supabase.
 
 Additional ordering and burger-customization functionality can continue to be expanded as the project develops.
+```sh
+npm install
+```
+
+## Usage
+
+```sh
+npm run start
+```
+
+## Show your support
+
+Give a ⭐️ if this project helped you!
+
+***
+_This README was generated with ❤️ by [readme-md-generator](https://github.com/kefranabg/readme-md-generator)_

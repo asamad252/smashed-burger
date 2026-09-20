@@ -4,13 +4,15 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  ArrowLeft,
-  ArrowRight,
+  ChevronLeft,
   Minus,
   Plus,
   ShoppingBag,
   Trash2,
+  Utensils,
 } from "lucide-react";
+
+import { motion } from "motion/react";
 
 import Navbar from "@/components/navbar/Navbar";
 import Footer from "@/components/footer/Footer";
@@ -25,51 +27,397 @@ import {
    TYPES
 ========================================================= */
 
-type CartMenuItem = {
+interface MenuItemRelation {
   id: string;
   name: string;
-  price: number | string;
+  price: number;
   storage_bucket: string;
   image_name: string;
-};
+}
 
-type CartItem = {
+interface IngredientRelation {
+  image_url: string | null;
+  ingredient_type: string;
+}
+
+interface CustomBurgerIngredient {
+  id: string;
+  ingredient_id: string | null;
+  ingredient_name: string;
+  unit_price: number;
+  position: number;
+
+  ingredients:
+    | IngredientRelation
+    | IngredientRelation[]
+    | null;
+}
+
+interface CustomBurgerRelation {
+  id: string;
+  name: string;
+  total_price: number;
+
+  custom_burger_ingredients:
+    | CustomBurgerIngredient[]
+    | null;
+}
+
+interface CartItem {
   id: string;
   user_id: string;
-  menu_item_id: string;
+
+  menu_item_id: string | null;
+  custom_burger_id: string | null;
+
+  item_type: "menu" | "custom";
+
   quantity: number;
 
+  created_at: string;
+
   menu_items:
-    | CartMenuItem
+    | MenuItemRelation
+    | MenuItemRelation[]
     | null;
-};
+
+  custom_burgers:
+    | CustomBurgerRelation
+    | CustomBurgerRelation[]
+    | null;
+}
+
+/* =========================================================
+   RELATION HELPERS
+========================================================= */
+
+function getMenuItem(
+  relation:
+    | MenuItemRelation
+    | MenuItemRelation[]
+    | null
+) {
+  if (!relation) {
+    return null;
+  }
+
+  return Array.isArray(relation)
+    ? relation[0] ?? null
+    : relation;
+}
+
+function getCustomBurger(
+  relation:
+    | CustomBurgerRelation
+    | CustomBurgerRelation[]
+    | null
+) {
+  if (!relation) {
+    return null;
+  }
+
+  return Array.isArray(relation)
+    ? relation[0] ?? null
+    : relation;
+}
+
+function getIngredientRelation(
+  relation:
+    | IngredientRelation
+    | IngredientRelation[]
+    | null
+) {
+  if (!relation) {
+    return null;
+  }
+
+  return Array.isArray(relation)
+    ? relation[0] ?? null
+    : relation;
+}
+
+/* =========================================================
+   NORMAL MENU IMAGE
+========================================================= */
+
+function getMenuImageUrl(
+  bucket: string,
+  imageName: string
+) {
+  if (
+    imageName.startsWith("http://") ||
+    imageName.startsWith("https://")
+  ) {
+    return imageName;
+  }
+
+  const { data } =
+    supabase.storage
+      .from(bucket)
+      .getPublicUrl(imageName);
+
+  return data.publicUrl;
+}
+
+/* =========================================================
+   INGREDIENT IMAGE
+========================================================= */
+
+function getIngredientImageUrl(
+  imageUrl: string | null
+) {
+  if (!imageUrl) {
+    return null;
+  }
+
+  if (
+    imageUrl.startsWith("http://") ||
+    imageUrl.startsWith("https://")
+  ) {
+    return imageUrl;
+  }
+
+  const cleanPath =
+    imageUrl.startsWith("/")
+      ? imageUrl.slice(1)
+      : imageUrl;
+
+  const storagePath =
+    cleanPath.startsWith("ingredients/")
+      ? cleanPath.replace(
+          "ingredients/",
+          ""
+        )
+      : cleanPath;
+
+  const { data } =
+    supabase.storage
+      .from("ingredients")
+      .getPublicUrl(storagePath);
+
+  return data.publicUrl;
+}
+
+/* =========================================================
+   CUSTOM BURGER PREVIEW
+========================================================= */
+
+function CustomBurgerPreview({
+  burger,
+}: {
+  burger: CustomBurgerRelation;
+}) {
+  const ingredients = [
+    ...(burger.custom_burger_ingredients ?? []),
+  ].sort(
+    (a, b) =>
+      a.position - b.position
+  );
+
+  const bottomBunImage =
+    getIngredientImageUrl(
+      "Bottom Bun.png"
+    );
+
+  const topBunImage =
+    getIngredientImageUrl(
+      "Top Bun.png"
+    );
+
+  const layerGap = 14;
+
+  const layerBaseBottom = 50;
+
+  const bottomBunBottom = 23;
+
+  const topBunBottom =
+    layerBaseBottom +
+    8 +
+    ingredients.length *
+      layerGap;
+
+  return (
+    <div
+      className="
+        relative
+        h-full
+        min-h-[240px]
+        w-full
+        overflow-hidden
+        rounded-[22px]
+        bg-[#8B2626]
+      "
+    >
+      {/* GLOW */}
+
+      <div
+        className="
+          pointer-events-none
+          absolute
+          left-1/2
+          top-[53%]
+          h-36
+          w-36
+          -translate-x-1/2
+          -translate-y-1/2
+          rounded-full
+          bg-[#EF6905]/15
+          blur-3xl
+        "
+      />
+
+      {/* BOTTOM BUN */}
+
+      {bottomBunImage && (
+        <img
+          src={bottomBunImage}
+          alt="Bottom Bun"
+          draggable={false}
+          className="
+            absolute
+            left-1/2
+            z-10
+            w-[190px]
+            max-w-[92%]
+            -translate-x-1/2
+            select-none
+            object-contain
+            drop-shadow-[0_8px_10px_rgba(0,0,0,0.18)]
+          "
+          style={{
+            bottom:
+              bottomBunBottom,
+          }}
+        />
+      )}
+
+      {/* SELECTED LAYERS */}
+
+      {ingredients.map(
+        (
+          ingredient,
+          index
+        ) => {
+          const relation =
+            getIngredientRelation(
+              ingredient.ingredients
+            );
+
+          const image =
+            getIngredientImageUrl(
+              relation?.image_url ??
+                null
+            );
+
+          if (!image) {
+            return null;
+          }
+
+          return (
+            <img
+              key={ingredient.id}
+              src={image}
+              alt={
+                ingredient.ingredient_name
+              }
+              draggable={false}
+              className="
+                absolute
+                left-1/2
+                w-[190px]
+                max-w-[92%]
+                -translate-x-1/2
+                select-none
+                object-contain
+                drop-shadow-[0_7px_9px_rgba(0,0,0,0.16)]
+              "
+              style={{
+                bottom:
+                  layerBaseBottom +
+                  index *
+                    layerGap,
+
+                zIndex:
+                  20 +
+                  index,
+              }}
+            />
+          );
+        }
+      )}
+
+      {/* TOP BUN */}
+
+      {topBunImage && (
+        <img
+          src={topBunImage}
+          alt="Top Bun"
+          draggable={false}
+          className="
+            absolute
+            left-1/2
+            z-[100]
+            w-[190px]
+            max-w-[92%]
+            -translate-x-1/2
+            select-none
+            object-contain
+            drop-shadow-[0_8px_10px_rgba(0,0,0,0.18)]
+          "
+          style={{
+            bottom:
+              topBunBottom,
+          }}
+        />
+      )}
+
+      {/* LABEL */}
+
+      <div
+        className="
+          absolute
+          bottom-3
+          left-1/2
+          z-[120]
+          -translate-x-1/2
+          whitespace-nowrap
+          rounded-full
+          bg-[#F1E5A1]/10
+          px-4
+          py-1.5
+          text-[7px]
+          font-black
+          tracking-[0.12em]
+          text-[#F1E5A1]/70
+        "
+      >
+        CUSTOM BUILD
+      </div>
+    </div>
+  );
+}
 
 /* =========================================================
    CART PAGE
 ========================================================= */
 
 export default function CartPage() {
-  const router = useRouter();
+  const router =
+    useRouter();
 
   const [
     cartItems,
     setCartItems,
   ] =
-    React.useState<
-      CartItem[]
-    >([]);
+    React.useState<CartItem[]>(
+      []
+    );
 
   const [
     loading,
     setLoading,
   ] =
     React.useState(true);
-
-  const [
-    loggedIn,
-    setLoggedIn,
-  ] =
-    React.useState(false);
 
   const [
     updatingId,
@@ -88,60 +436,165 @@ export default function CartPage() {
     >(null);
 
   /* =======================================================
-     STORAGE IMAGE URL
+     LOAD CART
   ======================================================= */
 
-  function getImageUrl(
-    item: CartMenuItem
-  ) {
-    const { data } =
-      supabase.storage
-        .from(
-          item.storage_bucket
-        )
-        .getPublicUrl(
-          item.image_name
-        );
+  const loadCart =
+    React.useCallback(
+      async () => {
+        try {
+          setLoading(true);
 
-    return data.publicUrl;
-  }
+          setError(null);
 
-  /* =======================================================
-     CART TOTAL QUANTITY
-  ======================================================= */
+          const {
+            data: {
+              user,
+            },
+            error:
+              authError,
+          } =
+            await supabase.auth.getUser();
 
-  function getTotalQuantity(
-    items: CartItem[]
-  ) {
-    return items.reduce(
-      (
-        total,
-        item
-      ) =>
-        total +
-        Number(
-          item.quantity
-        ),
-      0
+          if (
+            authError ||
+            !user
+          ) {
+            setCartItems([]);
+
+            return;
+          }
+
+          const {
+            data,
+            error:
+              cartError,
+          } =
+            await supabase
+              .from(
+                "cart_items"
+              )
+              .select(`
+                id,
+                user_id,
+                menu_item_id,
+                custom_burger_id,
+                item_type,
+                quantity,
+                created_at,
+
+                menu_items (
+                  id,
+                  name,
+                  price,
+                  storage_bucket,
+                  image_name
+                ),
+
+                custom_burgers (
+                  id,
+                  name,
+                  total_price,
+
+                  custom_burger_ingredients (
+                    id,
+                    ingredient_id,
+                    ingredient_name,
+                    unit_price,
+                    position,
+
+                    ingredients (
+                      image_url,
+                      ingredient_type
+                    )
+                  )
+                )
+              `)
+              .eq(
+                "user_id",
+                user.id
+              )
+              .order(
+                "created_at",
+                {
+                  ascending:
+                    false,
+                }
+              );
+
+          if (cartError) {
+            throw new Error(
+              cartError.message
+            );
+          }
+
+          setCartItems(
+            (data ??
+              []) as unknown as CartItem[]
+          );
+        } catch (err) {
+          console.error(
+            "Cart loading error:",
+            err
+          );
+
+          if (
+            err instanceof Error
+          ) {
+            setError(
+              err.message
+            );
+          } else {
+            setError(
+              "Could not load your cart."
+            );
+          }
+        } finally {
+          setLoading(false);
+        }
+      },
+      []
     );
-  }
+
+  React.useEffect(
+    () => {
+      loadCart();
+    },
+    [loadCart]
+  );
 
   /* =======================================================
-     UPDATE NAVBAR BADGE
+     CART COUNT
   ======================================================= */
 
-  function updateNavbar(
-    items: CartItem[]
+  const cartCount =
+    React.useMemo(
+      () =>
+        cartItems.reduce(
+          (
+            total,
+            item
+          ) =>
+            total +
+            item.quantity,
+          0
+        ),
+      [cartItems]
+    );
+
+  /* =======================================================
+     UPDATE NAVBAR CART BADGE
+  ======================================================= */
+
+  function broadcastCartCount(
+    count: number
   ) {
     window.dispatchEvent(
       new CustomEvent(
         "smashed-cart-updated",
         {
           detail: {
-            count:
-              getTotalQuantity(
-                items
-              ),
+            count,
           },
         }
       )
@@ -149,161 +602,101 @@ export default function CartPage() {
   }
 
   /* =======================================================
-     LOAD CART
+     GET UNIT PRICE
   ======================================================= */
 
-  React.useEffect(() => {
-    async function loadCart() {
-      try {
-        setLoading(
-          true
+  function getUnitPrice(
+    item: CartItem
+  ) {
+    if (
+      item.item_type ===
+      "custom"
+    ) {
+      const burger =
+        getCustomBurger(
+          item.custom_burgers
         );
 
-        setError(
-          null
-        );
-
-        /* =====================================
-           CHECK AUTH
-        ===================================== */
-
-        const {
-          data: {
-            user,
-          },
-        } =
-          await supabase.auth.getUser();
-
-        if (!user) {
-          setLoggedIn(
-            false
-          );
-
-          setCartItems(
-            []
-          );
-
-          return;
-        }
-
-        setLoggedIn(
-          true
-        );
-
-        /* =====================================
-           LOAD CART + MENU ITEM
-        ===================================== */
-
-        const {
-          data,
-          error:
-            databaseError,
-        } =
-          await supabase
-            .from(
-              "cart_items"
-            )
-            .select(`
-              id,
-              user_id,
-              menu_item_id,
-              quantity,
-              menu_items (
-                id,
-                name,
-                price,
-                storage_bucket,
-                image_name
-              )
-            `)
-            .eq(
-              "user_id",
-              user.id
-            )
-            .order(
-              "created_at",
-              {
-                ascending:
-                  false,
-              }
-            );
-
-        if (
-          databaseError
-        ) {
-          throw databaseError;
-        }
-
-        const items =
-          (data ??
-            []) as unknown as CartItem[];
-
-        setCartItems(
-          items
-        );
-
-        updateNavbar(
-          items
-        );
-      } catch (
-        err
-      ) {
-        console.error(
-          "Cart loading error:",
-          err
-        );
-
-        setError(
-          "Could not load your cart."
-        );
-      } finally {
-        setLoading(
-          false
-        );
-      }
+      return Number(
+        burger?.total_price ??
+          0
+      );
     }
 
-    loadCart();
-  }, []);
+    const menuItem =
+      getMenuItem(
+        item.menu_items
+      );
+
+    return Number(
+      menuItem?.price ?? 0
+    );
+  }
+
+  /* =======================================================
+     SUBTOTAL
+  ======================================================= */
+
+  const subtotal =
+    React.useMemo(
+      () =>
+        cartItems.reduce(
+          (
+            total,
+            item
+          ) => {
+            const unitPrice =
+              item.item_type ===
+              "custom"
+                ? Number(
+                    getCustomBurger(
+                      item.custom_burgers
+                    )
+                      ?.total_price ??
+                      0
+                  )
+                : Number(
+                    getMenuItem(
+                      item.menu_items
+                    )?.price ??
+                      0
+                  );
+
+            return (
+              total +
+              unitPrice *
+                item.quantity
+            );
+          },
+          0
+        ),
+      [cartItems]
+    );
 
   /* =======================================================
      CHANGE QUANTITY
   ======================================================= */
 
   async function changeQuantity(
-    cartItem: CartItem,
-    change: number
+    item: CartItem,
+    nextQuantity: number
   ) {
+    if (
+      nextQuantity < 1
+    ) {
+      await removeItem(
+        item.id
+      );
+
+      return;
+    }
+
     try {
       setUpdatingId(
-        cartItem.id
+        item.id
       );
 
-      setError(
-        null
-      );
-
-      const newQuantity =
-        cartItem.quantity +
-        change;
-
-      /* =====================================
-         IF QUANTITY BECOMES 0 -> REMOVE
-      ===================================== */
-
-      if (
-        newQuantity <= 0
-      ) {
-        await removeItem(
-          cartItem.id
-        );
-
-        return;
-      }
-
-      /* =====================================
-         UPDATE DATABASE
-      ===================================== */
+      setError(null);
 
       const {
         error:
@@ -315,58 +708,69 @@ export default function CartPage() {
           )
           .update({
             quantity:
-              newQuantity,
+              nextQuantity,
 
             updated_at:
               new Date().toISOString(),
           })
           .eq(
             "id",
-            cartItem.id
+            item.id
           );
 
-      if (
-        updateError
-      ) {
-        throw updateError;
+      if (updateError) {
+        throw new Error(
+          updateError.message
+        );
       }
 
-      /* =====================================
-         UPDATE UI
-      ===================================== */
-
-      const newCart =
+      const nextCart =
         cartItems.map(
-          (item) =>
-            item.id ===
-            cartItem.id
+          (
+            cartItem
+          ) =>
+            cartItem.id ===
+            item.id
               ? {
-                  ...item,
+                  ...cartItem,
 
                   quantity:
-                    newQuantity,
+                    nextQuantity,
                 }
-              : item
+              : cartItem
         );
 
       setCartItems(
-        newCart
+        nextCart
       );
 
-      updateNavbar(
-        newCart
+      const nextCount =
+        nextCart.reduce(
+          (
+            total,
+            cartItem
+          ) =>
+            total +
+            cartItem.quantity,
+          0
+        );
+
+      broadcastCartCount(
+        nextCount
       );
-    } catch (
-      err
-    ) {
+    } catch (err) {
       console.error(
         "Quantity update error:",
         err
       );
 
-      setError(
-        "Could not update quantity."
-      );
+      if (
+        err instanceof Error
+      ) {
+        setError(
+          err.message
+        );
+      }
     } finally {
       setUpdatingId(
         null
@@ -379,16 +783,12 @@ export default function CartPage() {
   ======================================================= */
 
   async function removeItem(
-    cartItemId: string
+    id: string
   ) {
     try {
-      setUpdatingId(
-        cartItemId
-      );
+      setUpdatingId(id);
 
-      setError(
-        null
-      );
+      setError(null);
 
       const {
         error:
@@ -401,74 +801,60 @@ export default function CartPage() {
           .delete()
           .eq(
             "id",
-            cartItemId
+            id
           );
 
-      if (
-        deleteError
-      ) {
-        throw deleteError;
+      if (deleteError) {
+        throw new Error(
+          deleteError.message
+        );
       }
 
-      const newCart =
+      const nextCart =
         cartItems.filter(
-          (item) =>
-            item.id !==
-            cartItemId
+          (
+            item
+          ) =>
+            item.id !== id
         );
 
       setCartItems(
-        newCart
+        nextCart
       );
 
-      updateNavbar(
-        newCart
+      const nextCount =
+        nextCart.reduce(
+          (
+            total,
+            item
+          ) =>
+            total +
+            item.quantity,
+          0
+        );
+
+      broadcastCartCount(
+        nextCount
       );
-    } catch (
-      err
-    ) {
+    } catch (err) {
       console.error(
-        "Remove item error:",
+        "Remove cart item error:",
         err
       );
 
-      setError(
-        "Could not remove item."
-      );
+      if (
+        err instanceof Error
+      ) {
+        setError(
+          err.message
+        );
+      }
     } finally {
       setUpdatingId(
         null
       );
     }
   }
-
-  /* =======================================================
-     CALCULATE TOTAL
-  ======================================================= */
-
-  const subtotal =
-    cartItems.reduce(
-      (
-        total,
-        item
-      ) => {
-        if (
-          !item.menu_items
-        ) {
-          return total;
-        }
-
-        return (
-          total +
-          Number(
-            item.menu_items
-              .price
-          ) *
-            item.quantity
-        );
-      },
-      0
-    );
 
   /* =======================================================
      PAGE
@@ -484,57 +870,6 @@ export default function CartPage() {
       <Navbar />
 
       {/* =================================================
-          HEADER
-      ================================================= */}
-
-      <section
-        className="
-          bg-[#8B2626]
-          px-6
-          pb-12
-          pt-10
-          text-center
-        "
-      >
-        <p
-          className="
-            text-[10px]
-            font-black
-            tracking-[0.28em]
-            text-[#EF6905]
-          "
-        >
-          SMASHED
-        </p>
-
-        <h1
-          className="
-            mt-2
-            text-5xl
-            font-black
-            tracking-[-0.055em]
-            text-[#F1E5A1]
-            md:text-6xl
-          "
-        >
-          YOUR CART
-        </h1>
-
-        <p
-          className="
-            mx-auto
-            mt-3
-            max-w-md
-            text-sm
-            text-[#F1E5A1]/55
-          "
-        >
-          Check your smash before
-          we send it to the kitchen.
-        </p>
-      </section>
-
-      {/* =================================================
           LOADING
       ================================================= */}
 
@@ -542,61 +877,182 @@ export default function CartPage() {
         <section
           className="
             flex
-            min-h-[450px]
+            min-h-[650px]
             items-center
             justify-center
           "
         >
           <LoadingBreadcrumb
-            text="Checking Your Order"
+            text="Loading Cart"
             variant="light"
           />
         </section>
       )}
 
       {/* =================================================
-          NOT LOGGED IN
+          CART
       ================================================= */}
 
-      {!loading &&
-        !loggedIn && (
-          <section
+      {!loading && (
+        <section
+          className="
+            mx-auto
+            max-w-[1400px]
+            px-4
+            py-8
+
+            sm:px-6
+
+            lg:px-8
+            lg:py-12
+          "
+        >
+          {/* HEADER */}
+
+          <div
             className="
-              mx-auto
               flex
-              min-h-[480px]
-              max-w-[600px]
-              items-center
-              justify-center
-              px-6
-              py-14
+              flex-col
+              gap-5
+
+              sm:flex-row
+              sm:items-end
+              sm:justify-between
             "
           >
+            <div>
+              <p
+                className="
+                  text-[9px]
+                  font-black
+                  tracking-[0.22em]
+                  text-[#EF6905]
+                "
+              >
+                SMASHED
+              </p>
+
+              <h1
+                className="
+                  mt-1
+                  text-5xl
+                  font-black
+                  tracking-[-0.06em]
+                  text-[#8B2626]
+
+                  sm:text-6xl
+                "
+              >
+                YOUR CART
+              </h1>
+
+              <p
+                className="
+                  mt-2
+                  text-sm
+                  font-bold
+                  text-[#8B2626]/45
+                "
+              >
+                {cartCount}{" "}
+                {cartCount === 1
+                  ? "ITEM"
+                  : "ITEMS"}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  "/menu"
+                )
+              }
+              className="
+                flex
+                w-fit
+                items-center
+                gap-2
+                rounded-full
+                border
+                border-[#8B2626]/15
+                px-4
+                py-2.5
+                text-[9px]
+                font-black
+                tracking-[0.1em]
+                text-[#8B2626]
+                transition
+
+                hover:border-[#8B2626]
+                hover:bg-[#8B2626]
+                hover:text-[#F1E5A1]
+              "
+            >
+              <ChevronLeft
+                size={14}
+              />
+
+              KEEP ORDERING
+            </button>
+          </div>
+
+          {/* ERROR */}
+
+          {error && (
             <div
               className="
-                w-full
-                rounded-[30px]
+                mt-6
+                rounded-[18px]
                 bg-[#8B2626]
-                p-9
+                px-5
+                py-4
+                text-sm
+                font-bold
+                text-[#F1E5A1]
+              "
+            >
+              {error}
+            </div>
+          )}
+
+          {/* =================================================
+              EMPTY CART
+          ================================================= */}
+
+          {cartItems.length ===
+          0 ? (
+            <div
+              className="
+                mt-10
+                flex
+                min-h-[440px]
+                flex-col
+                items-center
+                justify-center
+                rounded-[32px]
+                border
+                border-dashed
+                border-[#8B2626]/20
+                bg-[#F8EDB6]
+                p-8
                 text-center
-                shadow-[0_24px_60px_rgba(82,32,22,0.18)]
               "
             >
               <div
                 className="
-                  mx-auto
                   flex
-                  h-16
-                  w-16
+                  h-20
+                  w-20
                   items-center
                   justify-center
                   rounded-full
-                  bg-[#EF6905]
+                  bg-[#8B2626]
                   text-[#F1E5A1]
                 "
               >
                 <ShoppingBag
-                  size={27}
+                  size={30}
                 />
               </div>
 
@@ -606,156 +1062,35 @@ export default function CartPage() {
                   text-3xl
                   font-black
                   tracking-[-0.04em]
-                  text-[#F1E5A1]
+                  text-[#8B2626]
                 "
               >
-                LOGIN TO VIEW CART
+                YOUR CART IS EMPTY
               </h2>
 
               <p
                 className="
-                  mx-auto
                   mt-3
                   max-w-sm
                   text-sm
                   leading-6
-                  text-[#F1E5A1]/60
+                  text-[#8B2626]/45
                 "
               >
-                Sign in to access
-                your saved cart and
-                continue your order.
+                Add one of our
+                burgers or build
+                your own smash.
               </p>
 
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(
-                    "/auth"
-                  )
-                }
+              <div
                 className="
                   mt-7
-                  inline-flex
-                  h-12
-                  items-center
+                  flex
+                  flex-wrap
                   justify-center
-                  gap-2
-                  rounded-full
-                  bg-[#EF6905]
-                  px-8
-                  text-xs
-                  font-black
-                  tracking-[0.1em]
-                  text-[#F1E5A1]
-                  transition
-                  hover:-translate-y-0.5
+                  gap-3
                 "
               >
-                LOGIN
-
-                <ArrowRight
-                  size={
-                    17
-                  }
-                />
-              </button>
-            </div>
-          </section>
-        )}
-
-      {/* =================================================
-          CART
-      ================================================= */}
-
-      {!loading &&
-        loggedIn && (
-          <section
-            className="
-              mx-auto
-              max-w-[1250px]
-              px-5
-              py-10
-              md:px-8
-              md:py-14
-            "
-          >
-            {/* =============================================
-                ERROR
-            ============================================= */}
-
-            {error && (
-              <div
-                className="
-                  mb-6
-                  rounded-2xl
-                  bg-[#8B2626]/10
-                  px-5
-                  py-4
-                  text-sm
-                  font-semibold
-                  text-[#8B2626]
-                "
-              >
-                {error}
-              </div>
-            )}
-
-            {/* =============================================
-                EMPTY CART
-            ============================================= */}
-
-            {cartItems.length ===
-            0 ? (
-              <div
-                className="
-                  py-20
-                  text-center
-                "
-              >
-                <div
-                  className="
-                    mx-auto
-                    flex
-                    h-20
-                    w-20
-                    items-center
-                    justify-center
-                    rounded-full
-                    bg-[#8B2626]
-                    text-[#F1E5A1]
-                  "
-                >
-                  <ShoppingBag
-                    size={
-                      32
-                    }
-                  />
-                </div>
-
-                <h2
-                  className="
-                    mt-6
-                    text-4xl
-                    font-black
-                    tracking-[-0.045em]
-                    text-[#8B2626]
-                  "
-                >
-                  YOUR CART IS EMPTY
-                </h2>
-
-                <p
-                  className="
-                    mt-3
-                    text-sm
-                    text-[#8B2626]/55
-                  "
-                >
-                  Your next smash is
-                  waiting.
-                </p>
-
                 <button
                   type="button"
                   onClick={() =>
@@ -764,377 +1099,672 @@ export default function CartPage() {
                     )
                   }
                   className="
-                    mt-7
-                    inline-flex
-                    h-12
-                    items-center
-                    justify-center
-                    gap-2
                     rounded-full
-                    bg-[#EF6905]
-                    px-7
-                    text-xs
+                    bg-[#8B2626]
+                    px-6
+                    py-3
+                    text-[10px]
                     font-black
                     tracking-[0.1em]
                     text-[#F1E5A1]
                     transition
-                    hover:-translate-y-0.5
+
+                    hover:bg-[#EF6905]
                   "
                 >
-                  <ArrowLeft
-                    size={
-                      17
-                    }
-                  />
+                  VIEW MENU
+                </button>
 
-                  BACK TO MENU
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      "/build"
+                    )
+                  }
+                  className="
+                    rounded-full
+                    bg-[#EF6905]
+                    px-6
+                    py-3
+                    text-[10px]
+                    font-black
+                    tracking-[0.1em]
+                    text-[#F1E5A1]
+                    transition
+
+                    hover:bg-[#8B2626]
+                  "
+                >
+                  BUILD YOUR OWN
                 </button>
               </div>
-            ) : (
-              /* =============================================
-                 ITEMS + SUMMARY
-              ============================================= */
+            </div>
+          ) : (
+            /* =================================================
+               CART GRID
+            ================================================= */
+
+            <div
+              className="
+                mt-8
+                grid
+                items-start
+                gap-6
+
+                lg:grid-cols-[minmax(0,1fr)_360px]
+              "
+            >
+              {/* =============================================
+                  ITEMS
+              ============================================= */}
 
               <div
                 className="
-                  grid
-                  gap-8
-                  lg:grid-cols-[1fr_360px]
+                  space-y-4
                 "
               >
-                {/* =========================================
-                    CART ITEMS
-                ========================================= */}
+                {cartItems.map(
+                  (
+                    item
+                  ) => {
+                    const isCustom =
+                      item.item_type ===
+                      "custom";
 
-                <div
-                  className="
-                    space-y-4
-                  "
-                >
-                  {cartItems.map(
-                    (
-                      cartItem
-                    ) => {
-                      const product =
-                        cartItem.menu_items;
+                    const menuItem =
+                      getMenuItem(
+                        item.menu_items
+                      );
 
-                      if (
-                        !product
-                      ) {
-                        return null;
-                      }
+                    const customBurger =
+                      getCustomBurger(
+                        item.custom_burgers
+                      );
 
-                      const price =
-                        Number(
-                          product.price
-                        );
+                    const unitPrice =
+                      getUnitPrice(
+                        item
+                      );
 
-                      const lineTotal =
-                        price *
-                        cartItem.quantity;
+                    const lineTotal =
+                      unitPrice *
+                      item.quantity;
 
-                      const isUpdating =
-                        updatingId ===
-                        cartItem.id;
+                    const menuImage =
+                      menuItem
+                        ? getMenuImageUrl(
+                            menuItem.storage_bucket,
+                            menuItem.image_name
+                          )
+                        : null;
 
-                      return (
-                        <div
-                          key={
-                            cartItem.id
-                          }
-                          className="
-                            grid
-                            gap-5
-                            rounded-[26px]
-                            bg-white/45
-                            p-4
-                            shadow-[0_12px_35px_rgba(82,32,22,0.08)]
-                            sm:grid-cols-[140px_1fr_auto]
-                            sm:items-center
-                          "
-                        >
-                          {/* IMAGE */}
+                    const ingredients =
+                      [
+                        ...(customBurger
+                          ?.custom_burger_ingredients ??
+                          []),
+                      ].sort(
+                        (
+                          a,
+                          b
+                        ) =>
+                          a.position -
+                          b.position
+                      );
 
+                    return (
+                      <motion.article
+                        key={
+                          item.id
+                        }
+                        layout
+                        initial={{
+                          opacity: 0,
+                          y: 10,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                        }}
+                        className="
+                          grid
+                          gap-5
+                          rounded-[28px]
+                          border
+                          border-[#8B2626]/10
+                          bg-[#F8EDB6]
+                          p-4
+                          shadow-[0_10px_30px_rgba(82,32,22,0.07)]
+
+                          sm:grid-cols-[190px_minmax(0,1fr)]
+                        "
+                      >
+                        {/* =================================
+                            IMAGE
+
+                            NORMAL MENU:
+                            image renders directly.
+
+                            CUSTOM:
+                            generated preview remains.
+                        ================================= */}
+
+                        {isCustom &&
+                        customBurger ? (
                           <div
                             className="
-                              aspect-square
+                              min-h-[240px]
                               overflow-hidden
-                              rounded-[20px]
-                              bg-[#8B2626]
+                              rounded-[22px]
                             "
                           >
-                            <img
-                              src={getImageUrl(
-                                product
-                              )}
-                              alt={
-                                product.name
+                            <CustomBurgerPreview
+                              burger={
+                                customBurger
                               }
-                              className="
-                                h-full
-                                w-full
-                                object-cover
-                              "
                             />
                           </div>
-
-                          {/* INFORMATION */}
-
-                          <div>
-                            <h2
-                              className="
-                                text-xl
-                                font-black
-                                uppercase
-                                tracking-[-0.03em]
-                                text-[#8B2626]
-                              "
-                            >
-                              {
-                                product.name
-                              }
-                            </h2>
-
-                            <p
-                              className="
-                                mt-1
-                                text-sm
-                                font-black
-                                text-[#EF6905]
-                              "
-                            >
-                              Rs.{" "}
-                              {price.toLocaleString()}
-                            </p>
-
-                            {/* QUANTITY */}
-
-                            <div
-                              className="
-                                mt-5
-                                inline-flex
-                                items-center
-                                rounded-full
-                                bg-[#8B2626]
-                                p-1
-                              "
-                            >
-                              <button
-                                type="button"
-                                disabled={
-                                  isUpdating
-                                }
-                                onClick={() =>
-                                  changeQuantity(
-                                    cartItem,
-                                    -1
-                                  )
-                                }
-                                className="
-                                  flex
-                                  h-9
-                                  w-9
-                                  items-center
-                                  justify-center
-                                  rounded-full
-                                  text-[#F1E5A1]
-                                  transition
-                                  hover:bg-[#F1E5A1]
-                                  hover:text-[#8B2626]
-                                  disabled:opacity-40
-                                "
-                              >
-                                <Minus
-                                  size={
-                                    15
-                                  }
-                                />
-                              </button>
-
-                              <span
-                                className="
-                                  min-w-[42px]
-                                  text-center
-                                  text-sm
-                                  font-black
-                                  text-[#F1E5A1]
-                                "
-                              >
-                                {
-                                  cartItem.quantity
-                                }
-                              </span>
-
-                              <button
-                                type="button"
-                                disabled={
-                                  isUpdating
-                                }
-                                onClick={() =>
-                                  changeQuantity(
-                                    cartItem,
-                                    1
-                                  )
-                                }
-                                className="
-                                  flex
-                                  h-9
-                                  w-9
-                                  items-center
-                                  justify-center
-                                  rounded-full
-                                  text-[#F1E5A1]
-                                  transition
-                                  hover:bg-[#F1E5A1]
-                                  hover:text-[#8B2626]
-                                  disabled:opacity-40
-                                "
-                              >
-                                <Plus
-                                  size={
-                                    15
-                                  }
-                                />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* PRICE + REMOVE */}
-
+                        ) : menuImage ? (
+                          <img
+                            src={
+                              menuImage
+                            }
+                            alt={
+                              menuItem?.name ??
+                              "Menu item"
+                            }
+                            draggable={
+                              false
+                            }
+                            className="
+                              mx-auto
+                              block
+                              h-auto
+                              max-h-[240px]
+                              w-auto
+                              max-w-[190px]
+                              self-center
+                              object-contain
+                            "
+                          />
+                        ) : (
                           <div
                             className="
                               flex
+                              min-h-[180px]
                               items-center
-                              justify-between
-                              gap-4
-                              sm:flex-col
-                              sm:items-end
+                              justify-center
+                              text-[#8B2626]/25
                             "
                           >
-                            <p
-                              className="
-                                text-lg
-                                font-black
-                                text-[#8B2626]
-                              "
-                            >
-                              Rs.{" "}
-                              {lineTotal.toLocaleString()}
-                            </p>
+                            <Utensils
+                              size={
+                                40
+                              }
+                            />
+                          </div>
+                        )}
+
+                        {/* =================================
+                            CONTENT
+                        ================================= */}
+
+                        <div
+                          className="
+                            flex
+                            min-w-0
+                            flex-col
+                          "
+                        >
+                          <div
+                            className="
+                              flex
+                              items-start
+                              justify-between
+                              gap-4
+                            "
+                          >
+                            <div>
+                              <p
+                                className="
+                                  text-[8px]
+                                  font-black
+                                  tracking-[0.18em]
+                                  text-[#EF6905]
+                                "
+                              >
+                                {isCustom
+                                  ? "CUSTOM BUILD"
+                                  : "SMASHED MENU"}
+                              </p>
+
+                              <h2
+                                className="
+                                  mt-1
+                                  text-2xl
+                                  font-black
+                                  uppercase
+                                  leading-tight
+                                  tracking-[-0.04em]
+                                  text-[#8B2626]
+
+                                  md:text-3xl
+                                "
+                              >
+                                {isCustom
+                                  ? customBurger?.name ??
+                                    "CUSTOM SMASHED BURGER"
+                                  : menuItem?.name ??
+                                    "MENU ITEM"}
+                              </h2>
+                            </div>
 
                             <button
                               type="button"
                               disabled={
-                                isUpdating
+                                updatingId ===
+                                item.id
                               }
                               onClick={() =>
                                 removeItem(
-                                  cartItem.id
+                                  item.id
                                 )
                               }
+                              aria-label="Remove item"
                               className="
                                 flex
                                 h-10
                                 w-10
+                                shrink-0
                                 items-center
                                 justify-center
                                 rounded-full
-                                bg-[#8B2626]/10
-                                text-[#8B2626]
+                                bg-[#8B2626]/7
+                                text-[#8B2626]/45
                                 transition
+
                                 hover:bg-[#8B2626]
                                 hover:text-[#F1E5A1]
+
                                 disabled:opacity-40
                               "
-                              aria-label={`Remove ${product.name}`}
                             >
                               <Trash2
                                 size={
-                                  17
+                                  15
                                 }
                               />
                             </button>
                           </div>
+
+                          {/* CUSTOM INGREDIENTS */}
+
+                          {isCustom &&
+                            ingredients.length >
+                              0 && (
+                              <div
+                                className="
+                                  mt-5
+                                  flex
+                                  flex-wrap
+                                  gap-2
+                                "
+                              >
+                                {ingredients.map(
+                                  (
+                                    ingredient
+                                  ) => (
+                                    <span
+                                      key={
+                                        ingredient.id
+                                      }
+                                      className="
+                                        rounded-full
+                                        bg-[#8B2626]/7
+                                        px-3
+                                        py-2
+                                        text-[8px]
+                                        font-black
+                                        uppercase
+                                        tracking-[0.06em]
+                                        text-[#8B2626]/60
+                                      "
+                                    >
+                                      {
+                                        ingredient.ingredient_name
+                                      }
+                                    </span>
+                                  )
+                                )}
+                              </div>
+                            )}
+
+                          {/* BUNS LABEL */}
+
+                          {isCustom && (
+                            <p
+                              className="
+                                mt-3
+                                text-[8px]
+                                font-black
+                                tracking-[0.1em]
+                                text-[#8B2626]/30
+                              "
+                            >
+                              + TOP & BOTTOM
+                              BUN INCLUDED
+                            </p>
+                          )}
+
+                          {/* PRICE / QUANTITY */}
+
+                          <div
+                            className="
+                              mt-auto
+                              flex
+                              flex-col
+                              gap-4
+                              pt-6
+
+                              sm:flex-row
+                              sm:items-end
+                              sm:justify-between
+                            "
+                          >
+                            <div>
+                              <p
+                                className="
+                                  text-[8px]
+                                  font-black
+                                  tracking-[0.12em]
+                                  text-[#8B2626]/35
+                                "
+                              >
+                                UNIT PRICE
+                              </p>
+
+                              <p
+                                className="
+                                  mt-1
+                                  text-xl
+                                  font-black
+                                  text-[#EF6905]
+                                "
+                              >
+                                Rs.{" "}
+                                {unitPrice.toLocaleString()}
+                              </p>
+                            </div>
+
+                            <div
+                              className="
+                                flex
+                                items-center
+                                gap-5
+                              "
+                            >
+                              {/* QUANTITY */}
+
+                              <div
+                                className="
+                                  flex
+                                  items-center
+                                  rounded-full
+                                  bg-[#8B2626]
+                                  p-1
+                                "
+                              >
+                                <button
+                                  type="button"
+                                  disabled={
+                                    updatingId ===
+                                    item.id
+                                  }
+                                  onClick={() =>
+                                    changeQuantity(
+                                      item,
+                                      item.quantity -
+                                        1
+                                    )
+                                  }
+                                  className="
+                                    flex
+                                    h-9
+                                    w-9
+                                    items-center
+                                    justify-center
+                                    rounded-full
+                                    text-[#F1E5A1]
+                                    transition
+
+                                    hover:bg-[#F1E5A1]/10
+
+                                    disabled:opacity-40
+                                  "
+                                >
+                                  <Minus
+                                    size={
+                                      14
+                                    }
+                                  />
+                                </button>
+
+                                <span
+                                  className="
+                                    min-w-9
+                                    text-center
+                                    text-sm
+                                    font-black
+                                    text-[#F1E5A1]
+                                  "
+                                >
+                                  {
+                                    item.quantity
+                                  }
+                                </span>
+
+                                <button
+                                  type="button"
+                                  disabled={
+                                    updatingId ===
+                                    item.id
+                                  }
+                                  onClick={() =>
+                                    changeQuantity(
+                                      item,
+                                      item.quantity +
+                                        1
+                                    )
+                                  }
+                                  className="
+                                    flex
+                                    h-9
+                                    w-9
+                                    items-center
+                                    justify-center
+                                    rounded-full
+                                    bg-[#EF6905]
+                                    text-[#F1E5A1]
+                                    transition
+
+                                    hover:scale-105
+
+                                    disabled:opacity-40
+                                  "
+                                >
+                                  <Plus
+                                    size={
+                                      14
+                                    }
+                                  />
+                                </button>
+                              </div>
+
+                              {/* TOTAL */}
+
+                              <div
+                                className="
+                                  min-w-[110px]
+                                  text-right
+                                "
+                              >
+                                <p
+                                  className="
+                                    text-[8px]
+                                    font-black
+                                    tracking-[0.1em]
+                                    text-[#8B2626]/35
+                                  "
+                                >
+                                  TOTAL
+                                </p>
+
+                                <p
+                                  className="
+                                    mt-1
+                                    text-2xl
+                                    font-black
+                                    text-[#8B2626]
+                                  "
+                                >
+                                  Rs.{" "}
+                                  {lineTotal.toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      );
-                    }
-                  )}
+                      </motion.article>
+                    );
+                  }
+                )}
+              </div>
 
-                  {/* BACK TO MENU */}
+              {/* =============================================
+                  ORDER SUMMARY
+              ============================================= */}
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push(
-                        "/menu"
-                      )
-                    }
-                    className="
-                      mt-4
-                      inline-flex
-                      items-center
-                      gap-2
-                      text-xs
-                      font-black
-                      tracking-[0.08em]
-                      text-[#8B2626]
-                      transition
-                      hover:text-[#EF6905]
-                    "
-                  >
-                    <ArrowLeft
-                      size={
-                        16
-                      }
-                    />
-
-                    ADD MORE ITEMS
-                  </button>
-                </div>
-
-                {/* =========================================
-                    ORDER SUMMARY
-                ========================================= */}
-
-                <aside
+              <aside
+                className="
+                  lg:sticky
+                  lg:top-5
+                "
+              >
+                <div
                   className="
-                    h-fit
-                    rounded-[28px]
+                    overflow-hidden
+                    rounded-[30px]
                     bg-[#8B2626]
-                    p-7
-                    shadow-[0_20px_55px_rgba(82,32,22,0.2)]
-                    lg:sticky
-                    lg:top-6
+                    p-6
+                    shadow-[0_20px_55px_rgba(82,32,22,0.18)]
                   "
                 >
                   <p
                     className="
-                      text-[10px]
+                      text-[8px]
                       font-black
                       tracking-[0.22em]
                       text-[#EF6905]
                     "
                   >
-                    SMASHED
+                    YOUR ORDER
                   </p>
 
                   <h2
                     className="
-                      mt-2
+                      mt-1
                       text-3xl
                       font-black
-                      tracking-[-0.04em]
+                      tracking-[-0.05em]
                       text-[#F1E5A1]
                     "
                   >
-                    ORDER SUMMARY
+                    SUMMARY
                   </h2>
 
                   <div
                     className="
+                      mt-6
+                      space-y-3
+                    "
+                  >
+                    {cartItems.map(
+                      (
+                        item
+                      ) => {
+                        const customBurger =
+                          getCustomBurger(
+                            item.custom_burgers
+                          );
+
+                        const menuItem =
+                          getMenuItem(
+                            item.menu_items
+                          );
+
+                        const name =
+                          item.item_type ===
+                          "custom"
+                            ? customBurger?.name ??
+                              "Custom Burger"
+                            : menuItem?.name ??
+                              "Menu Item";
+
+                        return (
+                          <div
+                            key={
+                              item.id
+                            }
+                            className="
+                              flex
+                              items-start
+                              justify-between
+                              gap-4
+                              text-xs
+                            "
+                          >
+                            <p
+                              className="
+                                min-w-0
+                                flex-1
+                                font-bold
+                                text-[#F1E5A1]/55
+                              "
+                            >
+                              {
+                                item.quantity
+                              }
+                              {" × "}
+                              {name}
+                            </p>
+
+                            <p
+                              className="
+                                shrink-0
+                                font-black
+                                text-[#F1E5A1]
+                              "
+                            >
+                              Rs.{" "}
+                              {(
+                                getUnitPrice(
+                                  item
+                                ) *
+                                item.quantity
+                              ).toLocaleString()}
+                            </p>
+                          </div>
+                        );
+                      }
+                    )}
+                  </div>
+
+                  <div
+                    className="
                       my-6
                       h-px
-                      bg-[#F1E5A1]/15
+                      bg-[#F1E5A1]/10
                     "
                   />
 
@@ -1143,87 +1773,44 @@ export default function CartPage() {
                       flex
                       items-center
                       justify-between
-                      text-sm
-                      text-[#F1E5A1]/65
                     "
                   >
-                    <span>
-                      Items
-                    </span>
-
-                    <span
+                    <p
                       className="
+                        text-xs
                         font-black
-                        text-[#F1E5A1]
+                        tracking-[0.08em]
+                        text-[#F1E5A1]/50
                       "
                     >
-                      {getTotalQuantity(
-                        cartItems
-                      )}
-                    </span>
-                  </div>
+                      SUBTOTAL
+                    </p>
 
-                  <div
-                    className="
-                      mt-4
-                      flex
-                      items-center
-                      justify-between
-                      text-sm
-                      text-[#F1E5A1]/65
-                    "
-                  >
-                    <span>
-                      Subtotal
-                    </span>
-
-                    <span
-                      className="
-                        font-black
-                        text-[#F1E5A1]
-                      "
-                    >
-                      Rs.{" "}
-                      {subtotal.toLocaleString()}
-                    </span>
-                  </div>
-
-                  <div
-                    className="
-                      my-6
-                      h-px
-                      bg-[#F1E5A1]/15
-                    "
-                  />
-
-                  <div
-                    className="
-                      flex
-                      items-end
-                      justify-between
-                    "
-                  >
-                    <span
-                      className="
-                        text-sm
-                        font-black
-                        text-[#F1E5A1]
-                      "
-                    >
-                      TOTAL
-                    </span>
-
-                    <span
+                    <p
                       className="
                         text-2xl
                         font-black
-                        text-[#EF6905]
+                        tracking-[-0.04em]
+                        text-[#F1E5A1]
                       "
                     >
                       Rs.{" "}
                       {subtotal.toLocaleString()}
-                    </span>
+                    </p>
                   </div>
+
+                  <p
+                    className="
+                      mt-2
+                      text-[9px]
+                      font-bold
+                      text-[#F1E5A1]/30
+                    "
+                  >
+                    Delivery fee will
+                    be calculated at
+                    checkout.
+                  </p>
 
                   <button
                     type="button"
@@ -1233,7 +1820,7 @@ export default function CartPage() {
                       )
                     }
                     className="
-                      mt-7
+                      mt-6
                       flex
                       h-14
                       w-full
@@ -1242,28 +1829,48 @@ export default function CartPage() {
                       gap-2
                       rounded-full
                       bg-[#EF6905]
-                      text-xs
+                      text-[10px]
                       font-black
-                      tracking-[0.1em]
+                      tracking-[0.12em]
                       text-[#F1E5A1]
-                      transition-all
-                      hover:-translate-y-0.5
-                      hover:bg-[#f47617]
+                      transition
+
+                      hover:bg-[#F1E5A1]
+                      hover:text-[#8B2626]
                     "
                   >
                     CHECKOUT
-
-                    <ArrowRight
-                      size={
-                        17
-                      }
-                    />
                   </button>
-                </aside>
-              </div>
-            )}
-          </section>
-        )}
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        "/build"
+                      )
+                    }
+                    className="
+                      mt-3
+                      w-full
+                      py-2
+                      text-center
+                      text-[8px]
+                      font-black
+                      tracking-[0.12em]
+                      text-[#F1E5A1]/35
+                      transition
+
+                      hover:text-[#F1E5A1]
+                    "
+                  >
+                    + BUILD ANOTHER BURGER
+                  </button>
+                </div>
+              </aside>
+            </div>
+          )}
+        </section>
+      )}
 
       <Footer />
     </main>
