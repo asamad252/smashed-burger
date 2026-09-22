@@ -628,10 +628,185 @@ function BurgerPreview({
             text-[#F1E5A1]/30
           "
         >
-          PICK AN INGREDIENT
         </motion.p>
       )}
     </div>
+  );
+}
+
+/* =========================================================
+   SLIDING ADD TO CART BUTTON
+========================================================= */
+
+function SlideTextCartButton({
+  onClick,
+  disabled,
+  loading,
+  added,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  loading: boolean;
+  added: boolean;
+}) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      whileTap={
+        disabled
+          ? undefined
+          : {
+              scale: 0.98,
+            }
+      }
+      className="
+        group
+        relative
+        mt-5
+        h-14
+        w-full
+        overflow-hidden
+        rounded-full
+        bg-[#EF6905]
+        shadow-[0_10px_28px_rgba(239,105,5,0.22)]
+        transition-colors
+        duration-300
+
+        hover:bg-[#8B2626]
+
+        disabled:cursor-not-allowed
+        disabled:opacity-45
+      "
+    >
+      {loading ? (
+        <div
+          className="
+            absolute
+            inset-0
+            flex
+            items-center
+            justify-center
+            gap-3
+            text-[#F1E5A1]
+          "
+        >
+          <span
+            className="
+              h-4
+              w-4
+              animate-spin
+              rounded-full
+              border-2
+              border-[#F1E5A1]/30
+              border-t-[#F1E5A1]
+            "
+          />
+
+          <span
+            className="
+              text-[11px]
+              font-black
+              tracking-[0.1em]
+            "
+          >
+            ADDING...
+          </span>
+        </div>
+      ) : added ? (
+        <div
+          className="
+            absolute
+            inset-0
+            flex
+            items-center
+            justify-center
+            gap-3
+            text-[#F1E5A1]
+          "
+        >
+          <Check size={17} />
+
+          <span
+            className="
+              text-[11px]
+              font-black
+              tracking-[0.1em]
+            "
+          >
+            ADDED TO CART
+          </span>
+        </div>
+      ) : (
+        <div
+          className="
+            absolute
+            inset-0
+            overflow-hidden
+          "
+        >
+          <div
+            className="
+              absolute
+              inset-0
+              flex
+              items-center
+              justify-center
+              gap-3
+              text-[#F1E5A1]
+              transition-transform
+              duration-300
+              ease-out
+
+              group-hover:-translate-y-full
+            "
+          >
+            <ShoppingCart size={17} />
+
+            <span
+              className="
+                text-[11px]
+                font-black
+                tracking-[0.1em]
+              "
+            >
+              ADD TO CART
+            </span>
+          </div>
+
+          <div
+            className="
+              absolute
+              inset-0
+              flex
+              translate-y-full
+              items-center
+              justify-center
+              gap-3
+              text-[#F1E5A1]
+              transition-transform
+              duration-300
+              ease-out
+
+              group-hover:translate-y-0
+            "
+          >
+            <ShoppingCart size={17} />
+
+            <span
+              className="
+                text-[11px]
+                font-black
+                tracking-[0.1em]
+              "
+            >
+              CHECKOUT
+            </span>
+          </div>
+        </div>
+      )}
+    </motion.button>
   );
 }
 
@@ -690,17 +865,7 @@ function SelectedIngredientsPanel({
         "
       >
         <div>
-          <p
-            className="
-              text-[8px]
-              font-black
-              tracking-[0.2em]
-              text-[#EF6905]
-            "
-          >
-            YOUR BUILD
-          </p>
-
+          
           <h2
             className="
               mt-1
@@ -743,62 +908,7 @@ function SelectedIngredientsPanel({
 
       {/* BUNS INCLUDED */}
 
-      <div
-        className="
-          mt-4
-          flex
-          items-center
-          justify-between
-          gap-3
-          rounded-[16px]
-          bg-[#8B2626]
-          px-4
-          py-3
-        "
-      >
-        <div>
-          <p
-            className="
-              text-[8px]
-              font-black
-              tracking-[0.12em]
-              text-[#EF6905]
-            "
-          >
-            INCLUDED
-          </p>
-
-          <p
-            className="
-              mt-1
-              text-sm
-              font-black
-              text-[#F1E5A1]
-            "
-          >
-            TOP + BOTTOM BUN
-          </p>
-        </div>
-
-        <div
-          className="
-            rounded-full
-            bg-[#F1E5A1]/10
-            px-3
-            py-2
-            text-[8px]
-            font-black
-            tracking-[0.08em]
-            text-[#F1E5A1]/60
-          "
-        >
-          {burgerLayers.length}{" "}
-          {burgerLayers.length ===
-          1
-            ? "ITEM"
-            : "ITEMS"}
-        </div>
-      </div>
+      
 
       {/* EMPTY */}
 
@@ -808,24 +918,13 @@ function SelectedIngredientsPanel({
           className="
             mt-4
             rounded-[18px]
-            border
-            border-dashed
-            border-[#8B2626]/20
+          
+            
             px-4
             py-7
             text-center
           "
         >
-          <p
-            className="
-              text-sm
-              font-bold
-              text-[#8B2626]/40
-            "
-          >
-            Add ingredients to start
-            building your burger.
-          </p>
         </div>
       ) : (
         <div
@@ -925,7 +1024,7 @@ function SelectedIngredientsPanel({
       <div
         className="
           mt-5
-          border-t
+         
           border-[#8B2626]/10
           pt-5
         "
@@ -945,21 +1044,13 @@ function SelectedIngredientsPanel({
                 font-black
                 tracking-[0.14em]
                 text-[#8B2626]/40
+                py-2
               "
             >
-              YOUR TOTAL
+              YOUR TOTAL (BUNS INCLUDED)
             </p>
 
-            <p
-              className="
-                mt-1
-                text-[10px]
-                font-bold
-                text-[#8B2626]/35
-              "
-            >
-              BUNS INCLUDED
-            </p>
+          
           </div>
 
           <p
@@ -1011,72 +1102,15 @@ function SelectedIngredientsPanel({
 
         {/* ADD TO CART */}
 
-        <motion.button
-          type="button"
+        <SlideTextCartButton
           onClick={onAddToCart}
           disabled={
             addingToCart ||
             burgerLayers.length === 0
           }
-          whileTap={{
-            scale: 0.98,
-          }}
-          className="
-            mt-5
-            flex
-            h-14
-            w-full
-            items-center
-            justify-center
-            gap-3
-            rounded-full
-            bg-[#EF6905]
-            px-6
-            text-[11px]
-            font-black
-            tracking-[0.1em]
-            text-[#F1E5A1]
-            shadow-[0_10px_28px_rgba(239,105,5,0.22)]
-            transition
-
-            hover:bg-[#d95d04]
-
-            disabled:cursor-not-allowed
-            disabled:opacity-45
-          "
-        >
-          {addingToCart ? (
-            <>
-              <span
-                className="
-                  h-4
-                  w-4
-                  animate-spin
-                  rounded-full
-                  border-2
-                  border-[#F1E5A1]/30
-                  border-t-[#F1E5A1]
-                "
-              />
-
-              ADDING...
-            </>
-          ) : addedToCart ? (
-            <>
-              <Check size={17} />
-
-              ADDED TO CART
-            </>
-          ) : (
-            <>
-              <ShoppingCart
-                size={17}
-              />
-
-              ADD CUSTOM BURGER
-            </>
-          )}
-        </motion.button>
+          loading={addingToCart}
+          added={addedToCart}
+        />
       </div>
     </div>
   );
@@ -2059,7 +2093,7 @@ export default function BuildPage() {
                           hover:text-[#F1E5A1]
                         "
                       >
-                        CLEAR BUILD
+                        CLEAR
                       </button>
                     )}
                   </div>

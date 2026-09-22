@@ -1442,20 +1442,7 @@ export default function CartPage() {
 
                           {/* BUNS LABEL */}
 
-                          {isCustom && (
-                            <p
-                              className="
-                                mt-3
-                                text-[8px]
-                                font-black
-                                tracking-[0.1em]
-                                text-[#8B2626]/30
-                              "
-                            >
-                              + TOP & BOTTOM
-                              BUN INCLUDED
-                            </p>
-                          )}
+                         
 
                           {/* PRICE / QUANTITY */}
 
@@ -1842,29 +1829,7 @@ export default function CartPage() {
                     CHECKOUT
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push(
-                        "/build"
-                      )
-                    }
-                    className="
-                      mt-3
-                      w-full
-                      py-2
-                      text-center
-                      text-[8px]
-                      font-black
-                      tracking-[0.12em]
-                      text-[#F1E5A1]/35
-                      transition
-
-                      hover:text-[#F1E5A1]
-                    "
-                  >
-                    + BUILD ANOTHER BURGER
-                  </button>
+                 
                 </div>
               </aside>
             </div>
