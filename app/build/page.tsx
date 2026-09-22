@@ -628,6 +628,7 @@ function BurgerPreview({
             text-[#F1E5A1]/30
           "
         >
+          PICK AN INGREDIENT
         </motion.p>
       )}
     </div>
@@ -2093,7 +2094,7 @@ export default function BuildPage() {
                           hover:text-[#F1E5A1]
                         "
                       >
-                        CLEAR
+                     
                       </button>
                     )}
                   </div>
